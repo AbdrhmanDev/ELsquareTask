@@ -10,14 +10,17 @@ export class DashboardService {
 
   constructor(private http: HttpClient) {}
 
-  getDashboardData(duration: number): Observable<any> {
-    return this.http.get(`${this.apiUrl}/GetFilters?duration=${duration}`);
+  getFillers(duration: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/GetFillers?duration=${duration}`);
   }
 
-  // Duration values:
-  // 0: Current Shift
-  // 1: Last Shift
-  // 2: Last Day
-  // 3: Last Week
-  // 4: Last Month
+  getDashboardData(duration: number): Observable<any> {
+    return this.http.get(
+      `${this.apiUrl}/GetDashboardData?duration=${duration}`
+    );
+  }
+
+  getTimelineData(duration: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/GetTimeLineData?duration=${duration}`);
+  }
 }

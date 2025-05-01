@@ -14,13 +14,14 @@
   </mat-toolbar>
 
   <div class="dashboard-content" *ngIf="!isLoading && !error">
+    <!-- KPI Cards -->
     <div class="kpi-cards">
       <mat-card>
         <mat-card-header>
           <mat-card-title>Production</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <div class="kpi-value">{{ dashboardData?.production || 0 }} m</div>
+          <div class="kpi-value">{{ filtersData?.count || 0 }} m</div>
         </mat-card-content>
       </mat-card>
 
@@ -29,7 +30,7 @@
           <mat-card-title>Average Speed</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <div class="kpi-value">{{ dashboardData?.avgSpeed || 0 }} RPM</div>
+          <div class="kpi-value">{{ filtersData?.avgSpeed || 0 }} RPM</div>
         </mat-card-content>
       </mat-card>
 
@@ -39,7 +40,7 @@
         </mat-card-header>
         <mat-card-content>
           <div class="kpi-value">
-            {{ dashboardData?.productionRate || 0 }} m/min
+            {{ filtersData?.prodProductivity_rate || 0 }} m/min
           </div>
         </mat-card-content>
       </mat-card>
@@ -49,53 +50,110 @@
           <mat-card-title>Stitches</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <div class="kpi-value">{{ dashboardData?.stitches || 0 }} /10cm</div>
+          <div class="kpi-value">{{ filtersData?.stitches || 0 }} /10cm</div>
         </mat-card-content>
       </mat-card>
 
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Stop Duration</mat-card-title>
+          <mat-card-title>Total Stop Duration</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <div class="kpi-value">
-            {{ dashboardData?.totalStopDuration || 0 }} min
-          </div>
+          <div class="kpi-value">{{ filtersData?.stopsDuration || 0 }} min</div>
         </mat-card-content>
       </mat-card>
     </div>
 
-    <div class="chart-container">
-      <mat-card class="chart-card">
-        <mat-card-header>
-          <mat-card-title>Performance</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="donut-chart">{{ dashboardData?.performance || 0 }}%</div>
-        </mat-card-content>
-      </mat-card>
+    <div class="dashboard-grid">
+      <!-- Charts Section -->
+      <div class="charts-section">
+        <!-- RPM Chart -->
+        <mat-card class="chart-card">
+          <mat-card-header>
+            <mat-card-title>Average RPM Over Time</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <canvas #rpmChart></canvas>
+          </mat-card-content>
+        </mat-card>
 
-      <mat-card class="chart-card">
-        <mat-card-header>
-          <mat-card-title>Availability</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="donut-chart">{{ dashboardData?.availability || 0 }}%</div>
-        </mat-card-content>
-      </mat-card>
+        <!-- Machine Timeline -->
+        <mat-card class="chart-card">
+          <mat-card-header>
+            <mat-card-title>Machine Status Timeline</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <canvas #timelineChart></canvas>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Stop Counters -->
+        <mat-card class="counters-card">
+          <mat-card-header>
+            <mat-card-title>Stop Counters</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="counters-grid">
+              <div class="counter">
+                <div class="counter-label">Normal Stops</div>
+                <div class="counter-value">
+                  {{ filtersData?.totalNormalStops || 0 }}
+                </div>
+              </div>
+              <div class="counter">
+                <div class="counter-label">Yarn Stops</div>
+                <div class="counter-value">
+                  {{ filtersData?.totalYarnStops || 0 }}
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <!-- Right Panel -->
+      <div class="right-panel">
+        <!-- Performance Chart -->
+        <mat-card class="donut-card">
+          <mat-card-header>
+            <mat-card-title>Performance</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <canvas #performanceChart></canvas>
+            <div class="donut-value">
+              {{ (filtersData?.performance || 0) * 100 | number : "1.0-1" }}%
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Availability Chart -->
+        <mat-card class="donut-card">
+          <mat-card-header>
+            <mat-card-title>Availability</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <canvas #availabilityChart></canvas>
+            <div class="donut-value">
+              {{ (filtersData?.availability || 0) * 100 | number : "1.0-1" }}%
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
     </div>
   </div>
 
+  <!-- Loading State -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner></mat-spinner>
   </div>
 
+  <!-- Error State -->
   <div class="error-container" *ngIf="error">
     <mat-card>
       <mat-card-content>
         <mat-icon color="warn">error</mat-icon>
         <p>{{ error }}</p>
-        <button mat-raised-button color="primary" (click)="loadDashboardData()">
+        <button mat-raised-button color="primary" (click)="loadAllData()">
           Retry
         </button>
       </mat-card-content>
