@@ -1,10 +1,4 @@
-import {
-  Component,
-  OnInit,
-  ViewChild,
-  ElementRef,
-  AfterViewInit,
-} from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,13 +6,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { DashboardService } from '../../../core/services/dashboard.service';
-import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
-import 'chartjs-adapter-moment';
-import moment from 'moment';
-
-// Register Chart.js components and adapter
-Chart.register(...registerables);
+import { NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
 
 interface TimelineItem {
   startTime: string;
@@ -50,10 +39,40 @@ interface FiltersData {
   totalYarnStops: number;
 }
 
-interface TimelineDataset {
-  start: Date;
-  end: Date;
-  color: string;
+// Chart options interfaces
+interface LineChartOptions {
+  legend: boolean;
+  showXAxisLabel: boolean;
+  showYAxisLabel: boolean;
+  xAxisLabel: string;
+  yAxisLabel: string;
+  animations: boolean;
+  gradient: boolean;
+  showGridLines: boolean;
+  roundDomains: boolean;
+  tooltipDisabled: boolean;
+  xAxis: boolean;
+  yAxis: boolean;
+  xScaleMin: number;
+  xScaleMax: number;
+  xAxisTickFormatting?: (val: number) => string;
+}
+
+interface TimelineChartOptions {
+  showXAxisLabel: boolean;
+  showYAxisLabel: boolean;
+  xAxisLabel: string;
+  gradient: boolean;
+  animations: boolean;
+  roundDomains: boolean;
+  showGridLines: boolean;
+  barPadding: number;
+  tooltipDisabled: boolean;
+  xAxis?: boolean;
+  yAxis?: boolean;
+  xAxisTickFormatting?: (val: number) => string;
+  yAxisTickFormatting?: (val: number) => string;
+  tooltipTemplate?: (data: any) => string;
 }
 
 @Component({
@@ -68,18 +87,10 @@ interface TimelineDataset {
     MatCardModule,
     MatProgressSpinnerModule,
     MatIconModule,
+    NgxChartsModule,
   ],
 })
-export class DashboardComponent implements OnInit, AfterViewInit {
-  @ViewChild('rpmChart', { static: true })
-  rpmChartRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('timelineChart', { static: true })
-  timelineChartRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('performanceChart', { static: true })
-  performanceChartRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('availabilityChart', { static: true })
-  availabilityChartRef!: ElementRef<HTMLCanvasElement>;
-
+export class DashboardComponent implements OnInit {
   selectedDuration = 0;
   dashboardData: { rpmData: RPMDataPoint[] } | null = null;
   filtersData: FiltersData | null = null;
@@ -87,10 +98,77 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   isLoading = true;
   error: string | null = null;
 
-  private rpmChart: Chart | null = null;
-  private timelineChart: Chart | null = null;
-  private performanceChart: Chart | null = null;
-  private availabilityChart: Chart | null = null;
+  // Chart configurations
+  rpmChartData: any[] = [];
+  timelineChartData: any[] = [];
+  performanceGaugeData: any[] = [];
+  availabilityGaugeData: any[] = [];
+
+  // Chart options
+  lineChartOptions: LineChartOptions = {
+    legend: false,
+    showXAxisLabel: true,
+    showYAxisLabel: true,
+    xAxisLabel: 'Time',
+    yAxisLabel: 'RPM',
+    animations: true,
+    gradient: false,
+    showGridLines: true,
+    roundDomains: true,
+    tooltipDisabled: false,
+    xAxis: true,
+    yAxis: true,
+    xScaleMin: 0,
+    xScaleMax: 0,
+  };
+
+  timelineChartOptions: TimelineChartOptions = {
+    showXAxisLabel: true,
+    showYAxisLabel: false,
+    xAxisLabel: 'Time',
+    gradient: false,
+    animations: true,
+    roundDomains: true,
+    showGridLines: false,
+    barPadding: 0,
+    tooltipDisabled: false,
+  };
+
+  gaugeOptions = {
+    min: 0,
+    max: 100,
+    units: '%',
+    showAxis: false,
+    bigSegments: 10,
+    smallSegments: 5,
+    animations: true,
+    angleSpan: 240,
+    startAngle: -120,
+    showText: true,
+    margin: [30, 30, 30, 30],
+    textValue: '',
+  };
+
+  colorScheme = {
+    name: 'custom',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#2196F3', '#4CAF50', '#FF5722', '#FFC107'],
+  };
+
+  performanceColorScheme = {
+    name: 'performance',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#4CAF50'],
+  };
+
+  availabilityColorScheme = {
+    name: 'availability',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#2196F3'],
+  };
 
   timeFilters = [
     { value: 0, label: 'Current Shift' },
@@ -104,13 +182,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.loadAllData();
-  }
-
-  ngAfterViewInit(): void {
-    // Add a small delay to ensure the view is fully rendered
-    setTimeout(() => {
-      this.initializeCharts();
-    });
   }
 
   loadAllData(): void {
@@ -142,293 +213,176 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.loadAllData();
   }
 
-  private initializeCharts(): void {
-    if (
-      this.rpmChartRef?.nativeElement &&
-      this.timelineChartRef?.nativeElement &&
-      this.performanceChartRef?.nativeElement &&
-      this.availabilityChartRef?.nativeElement
-    ) {
-      this.initializeRPMChart();
-      this.initializeTimelineChart();
-      this.initializeDonutCharts();
-    } else {
-      console.error('Chart references not available');
-    }
-  }
-
-  private initializeRPMChart(): void {
-    if (!this.rpmChartRef?.nativeElement) return;
-
-    const ctx = this.rpmChartRef.nativeElement.getContext('2d');
-    if (!ctx) return;
-
-    this.rpmChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: 'RPM',
-            data: [],
-            borderColor: '#1976d2',
-            backgroundColor: 'rgba(25, 118, 210, 0.1)',
-            tension: 0.4,
-            fill: true,
-            pointRadius: 0,
-            borderWidth: 2,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            titleColor: '#fff',
-            bodyColor: '#fff',
-            titleFont: { size: 13 },
-            bodyFont: { size: 12 },
-            padding: 10,
-            displayColors: false,
-          },
-          legend: {
-            display: false,
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'RPM',
-              color: '#666',
-            },
-            grid: {
-              color: '#eee',
-            },
-            ticks: {
-              color: '#666',
-            },
-          },
-          x: {
-            type: 'time',
-            time: {
-              unit: 'minute',
-              displayFormats: {
-                minute: 'HH:mm',
-              },
-            },
-            title: {
-              display: true,
-              text: 'Time',
-              color: '#666',
-            },
-            grid: {
-              color: '#eee',
-            },
-            ticks: {
-              color: '#666',
-              maxRotation: 0,
-            },
-          },
-        },
-      },
-    });
-  }
-
-  private initializeTimelineChart(): void {
-    if (!this.timelineChartRef?.nativeElement) return;
-
-    const ctx = this.timelineChartRef.nativeElement.getContext('2d');
-    if (!ctx) return;
-
-    this.timelineChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Machine Status'],
-        datasets: [
-          {
-            label: 'Machine Status',
-            data: [],
-            backgroundColor: [],
-            barThickness: 40,
-            minBarLength: 5,
-          },
-        ],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false,
-          },
-          tooltip: {
-            enabled: true,
-            mode: 'nearest',
-            callbacks: {
-              label: (context: any) => {
-                const data = context.raw;
-                return `${data.status} (${moment(data.startTime).format(
-                  'HH:mm:ss'
-                )} - ${moment(data.endTime).format('HH:mm:ss')})`;
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'hour',
-              displayFormats: {
-                hour: 'HH:mm',
-              },
-            },
-            title: {
-              display: true,
-              text: 'Time',
-              color: '#666',
-            },
-            grid: {
-              color: '#eee',
-            },
-            ticks: {
-              color: '#666',
-            },
-          },
-          y: {
-            display: true,
-            grid: {
-              display: false,
-            },
-          },
-        },
-      },
-    });
-  }
-
-  private initializeDonutCharts(): void {
-    if (
-      !this.performanceChartRef?.nativeElement ||
-      !this.availabilityChartRef?.nativeElement
-    )
-      return;
-
-    const perfCtx = this.performanceChartRef.nativeElement.getContext('2d');
-    const availCtx = this.availabilityChartRef.nativeElement.getContext('2d');
-    if (!perfCtx || !availCtx) return;
-
-    const commonOptions = {
-      cutout: '75%',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false,
-        },
-        tooltip: {
-          enabled: false,
-        },
-      },
-    };
-
-    // Performance Chart
-    this.performanceChart = new Chart(perfCtx, {
-      type: 'doughnut',
-      data: {
-        datasets: [
-          {
-            data: [0, 100],
-            backgroundColor: ['#4CAF50', '#f5f5f5'],
-            borderWidth: 0,
-          },
-        ],
-      },
-      options: commonOptions,
-    });
-
-    // Availability Chart
-    this.availabilityChart = new Chart(availCtx, {
-      type: 'doughnut',
-      data: {
-        datasets: [
-          {
-            data: [0, 100],
-            backgroundColor: ['#2196F3', '#f5f5f5'],
-            borderWidth: 0,
-          },
-        ],
-      },
-      options: commonOptions,
-    });
-  }
-
   private updateCharts(): void {
     this.updateRPMChart();
     this.updateTimelineChart();
-    this.updateDonutCharts();
+    this.updateGaugeCharts();
   }
 
   private updateRPMChart(): void {
-    if (!this.rpmChart || !this.dashboardData?.rpmData) return;
+    if (!this.dashboardData?.rpmData || this.dashboardData.rpmData.length === 0)
+      return;
 
-    this.rpmChart.data.labels = this.dashboardData.rpmData.map(
-      (d: RPMDataPoint) => d.timestamp
-    );
-    this.rpmChart.data.datasets[0].data = this.dashboardData.rpmData.map(
-      (d: RPMDataPoint) => d.rpm
-    );
-    this.rpmChart.update();
+    const sortedData = [...this.dashboardData.rpmData]
+      .filter((d) => !isNaN(d.rpm) && d.rpm !== null && d.timestamp)
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+    if (sortedData.length === 0) return;
+
+    const firstTimestamp = new Date(sortedData[0].timestamp).getTime();
+    const lastTimestamp = new Date(
+      sortedData[sortedData.length - 1].timestamp
+    ).getTime();
+
+    this.lineChartOptions = {
+      ...this.lineChartOptions,
+      xScaleMin: firstTimestamp,
+      xScaleMax: lastTimestamp,
+      xAxisTickFormatting: (val: number) => {
+        const date = new Date(val);
+        return date.toLocaleTimeString();
+      },
+    };
+
+    this.rpmChartData = [
+      {
+        name: 'RPM',
+        series: sortedData.map((d) => ({
+          name: new Date(d.timestamp).getTime(),
+          value: Math.round(Math.max(0, Number(d.rpm) || 0)),
+          min: 0,
+        })),
+      },
+    ];
   }
 
   private updateTimelineChart(): void {
-    if (!this.timelineChart || !this.timelineData) return;
+    if (!this.timelineData || this.timelineData.length === 0) return;
 
-    const chartData = this.timelineData.map((item) => ({
-      x: new Date(item.startTime).getTime(),
-      width:
-        new Date(item.endTime).getTime() - new Date(item.startTime).getTime(),
-      y: 'Machine Status',
-      status: item.status,
-      startTime: item.startTime,
-      endTime: item.endTime,
-    }));
+    const sortedData = [...this.timelineData]
+      .filter((item) => {
+        const start = new Date(item.startTime).getTime();
+        const end = item.endTime
+          ? new Date(item.endTime).getTime()
+          : new Date().getTime();
+        return !isNaN(start) && !isNaN(end) && start <= end;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
 
-    this.timelineChart.data.datasets[0].data = chartData as any;
-    this.timelineChart.data.datasets[0].backgroundColor = chartData.map((d) =>
-      d.status === 'Online' ? '#a1ca70' : '#e61e2b'
-    );
+    if (sortedData.length === 0) return;
 
-    this.timelineChart.update('none');
+    const online = [];
+    const offline = [];
+    const now = new Date().getTime();
+
+    for (const item of sortedData) {
+      const startTime = new Date(item.startTime).getTime();
+      const endTime = item.endTime ? new Date(item.endTime).getTime() : now;
+      const durationInMinutes = Math.max(
+        0,
+        (endTime - startTime) / (1000 * 60)
+      );
+
+      if (isNaN(durationInMinutes)) continue;
+
+      const timePoint = {
+        name: startTime,
+        value: Math.round(durationInMinutes),
+        status: item.status,
+        stopType: item.stopType,
+        endTime: endTime,
+        extra: {
+          startTimeFormatted: new Date(startTime).toLocaleString(),
+          endTimeFormatted: new Date(endTime).toLocaleString(),
+          duration: this.formatDuration(durationInMinutes),
+          status: item.status,
+          stopType: item.stopType || 'N/A',
+        },
+      };
+
+      if (item.status === 'Online') {
+        online.push(timePoint);
+      } else {
+        offline.push(timePoint);
+      }
+    }
+
+    // Update timeline chart options
+    this.timelineChartOptions = {
+      ...this.timelineChartOptions,
+      xAxis: true,
+      yAxis: true,
+      xAxisTickFormatting: (val: number) => {
+        return new Date(val).toLocaleTimeString();
+      },
+      yAxisTickFormatting: (val: number) => {
+        return `${Math.round(val)}m`;
+      },
+      tooltipTemplate: (data: any) => {
+        return `
+                <div>
+                    <div>Status: ${data.extra.status}</div>
+                    <div>Start: ${data.extra.startTimeFormatted}</div>
+                    <div>End: ${data.extra.endTimeFormatted}</div>
+                    <div>Duration: ${data.extra.duration}</div>
+                    ${
+                      data.extra.stopType !== 'N/A'
+                        ? `<div>Stop Type: ${data.extra.stopType}</div>`
+                        : ''
+                    }
+                </div>
+            `;
+      },
+    };
+
+    this.timelineChartData = [
+      {
+        name: 'Online',
+        series: online,
+      },
+      {
+        name: 'Offline',
+        series: offline,
+      },
+    ];
   }
 
-  private updateDonutCharts(): void {
-    if (!this.performanceChart || !this.availabilityChart || !this.filtersData)
-      return;
+  private formatDuration(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.floor(minutes % 60);
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  }
 
-    // Convert decimal to percentage for both charts
-    const performancePercentage = this.filtersData.performance * 100;
-    const availabilityPercentage = this.filtersData.availability * 100;
+  private updateGaugeCharts(): void {
+    if (!this.filtersData) return;
 
-    // Update Performance Chart
-    this.performanceChart.data.datasets[0].data = [
-      performancePercentage,
-      100 - performancePercentage,
+    const performanceValue = Math.round(this.filtersData.performance * 100);
+    const availabilityValue = Math.round(this.filtersData.availability * 100);
+
+    this.performanceGaugeData = [
+      {
+        name: 'Performance',
+        value: performanceValue,
+        textValue: `${performanceValue}%`,
+      },
     ];
-    this.performanceChart.update();
 
-    // Update Availability Chart
-    this.availabilityChart.data.datasets[0].data = [
-      availabilityPercentage,
-      100 - availabilityPercentage,
+    this.availabilityGaugeData = [
+      {
+        name: 'Availability',
+        value: availabilityValue,
+        textValue: `${availabilityValue}%`,
+      },
     ];
-    this.availabilityChart.update();
   }
 
   getStopCounts(): { normal: number; yarn: number } {
