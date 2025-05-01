@@ -20,16 +20,19 @@ import { ScaleType } from '@swimlane/ngx-charts';
         [yAxisLabel]="'Value'"
         [timeline]="false"
         [autoScale]="true"
-        [scheme]="colorScheme">
+        [scheme]="colorScheme"
+      >
       </ngx-charts-line-chart>
     </div>
   `,
-  styles: [`
-    .timeline-chart {
-      height: 300px;
-      margin: 1rem 0;
-    }
-  `]
+  styles: [
+    `
+      .timeline-chart {
+        height: 300px;
+        margin: 1rem 0;
+      }
+    `,
+  ],
 })
 export class TimelineChartComponent {
   @Input() timelineData: any[] = [];

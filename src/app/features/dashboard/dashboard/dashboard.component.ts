@@ -153,7 +153,14 @@ export class DashboardComponent implements OnInit {
     name: 'custom',
     selectable: true,
     group: ScaleType.Ordinal,
-    domain: ['#2196F3', '#4CAF50', '#FF5722', '#FFC107'],
+    domain: ['#2196F3', '#a1ca70', '#e61e2b', '#FFC107'],
+  };
+
+  timelineColorScheme = {
+    name: 'timeline',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#a1ca70', '#e61e2b'],
   };
 
   performanceColorScheme = {
@@ -341,14 +348,17 @@ export class DashboardComponent implements OnInit {
       },
     };
 
+    // Using the specific colors required in the task: Online (green #a1ca70) and Offline (red #e61e2b)
     this.timelineChartData = [
       {
         name: 'Online',
         series: online,
+        color: '#a1ca70',
       },
       {
         name: 'Offline',
         series: offline,
+        color: '#e61e2b',
       },
     ];
   }

@@ -97,6 +97,30 @@
           display: flex;
           flex-direction: column;
         }
+
+        .stop-counters {
+          display: flex;
+          justify-content: space-around;
+          align-items: center;
+          height: 100%;
+
+          .stop-counter {
+            text-align: center;
+            padding: 20px;
+
+            .counter-label {
+              font-size: 1rem;
+              color: #666;
+              margin-bottom: 10px;
+            }
+
+            .counter-value {
+              font-size: 2.5rem;
+              font-weight: 500;
+              color: #333;
+            }
+          }
+        }
       }
     }
 

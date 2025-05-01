@@ -117,7 +117,7 @@
               [showGridLines]="timelineChartOptions.showGridLines"
               [barPadding]="timelineChartOptions.barPadding"
               [tooltipDisabled]="timelineChartOptions.tooltipDisabled"
-              [scheme]="colorScheme"
+              [scheme]="timelineColorScheme"
               [xAxisTickFormatting]="timelineChartOptions.xAxisTickFormatting"
               [yAxisTickFormatting]="timelineChartOptions.yAxisTickFormatting"
             >
@@ -176,6 +176,25 @@
               [showText]="true"
             >
             </ngx-charts-gauge>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Stop Counters Card -->
+      <mat-card class="chart-card">
+        <mat-card-header>
+          <mat-card-title>Stop Counters</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="stop-counters">
+            <div class="stop-counter">
+              <div class="counter-label">Normal Stops</div>
+              <div class="counter-value">{{ getStopCounts().normal }}</div>
+            </div>
+            <div class="stop-counter">
+              <div class="counter-label">Yarn Stops</div>
+              <div class="counter-value">{{ getStopCounts().yarn }}</div>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
